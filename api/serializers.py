@@ -323,10 +323,6 @@ class EventStatsSerializer(serializers.ModelSerializer):
         fields = ["id", "title","is_active"]
         
         
-# class TicketTypeCountSerializer(serializers.Serializer):
-#     ticket_type = serializers.CharField()
-#     count = serializers.IntegerField()
-    
 class TicketCountSerializer(serializers.Serializer):
     ticket_type_title = serializers.CharField()
     count = serializers.IntegerField()
@@ -386,65 +382,3 @@ class TicketSerializer(serializers.ModelSerializer):
 
         return representation
 
-# class TicketTypeSerializer(serializers.ModelSerializer):
-#     count = serializers.SerializerMethodField()
-#     total_tickets = serializers.SerializerMethodField()
-#     remaining_tickets = serializers.SerializerMethodField()
-#     # revenue = serializers.SerializerMethodField()
-#     discount_price = serializers.SerializerMethodField()
-#     discount_rate = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = TicketType
-#         fields = [
-#             "id",
-#             "title",
-#             "price",
-#             "discount_price",
-#             "discount_rate",
-#             "available_tickets",
-#             "event_id",
-#             "is_active",
-#             "count",
-#             "total_tickets",
-#             "remaining_tickets",
-#             # "revenue"
-#         ]
-
-#     def get_count(self, obj):
-#         tickets = Ticket.objects.filter(event=obj.event, ticket_type=obj)
-#         ticket_counts = 0
-#         for ticket in tickets:
-#             if ticket.invoice_number is not None:
-#                 invoice = get_object_or_404(Invoice, invoice_number=ticket.invoice_number, is_paid=True)
-#                 if invoice.is_paid:
-#                     ticket_counts += 1
-#         return ticket_counts
-
-#     def get_total_tickets(self, obj):
-#         return obj.available_tickets
-
-#     def get_remaining_tickets(self, obj):
-#         total_tickets = self.get_total_tickets(obj)
-#         sold_tickets = self.get_count(obj)
-#         return total_tickets - sold_tickets
-
-#     def get_revenue(self, obj):
-#         tickets = Ticket.objects.filter(event=obj.event, ticket_type=obj)
-#         revenue = 0.0
-#         for ticket in tickets:
-#             if ticket.invoice_number is not None:
-#                 invoice = get_object_or_404(Invoice, invoice_number=ticket.invoice_number, is_paid=True)
-#                 if invoice.is_paid and invoice.invoice_amount is not None:
-#                     revenue += float(invoice.invoice_amount)
-#         return "{:.2f}".format(revenue)
-
-#     def get_discount_price(self, obj):
-#         discount_price = obj.get_discount_price()
-#         return "{:.2f}".format(discount_price) if discount_price else "0.00"
-
-#     def get_discount_rate(self, obj):
-#         active_discount = Discount.objects.filter(ticket_type=obj, is_active=True).order_by('-timestamp').first()
-#         if active_discount:
-#             return "{:.2f}".format(active_discount.discount_rate)
-#         return "0.00"

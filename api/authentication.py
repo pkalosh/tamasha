@@ -58,7 +58,7 @@ def create_refresh_token(id):
         {
             "user_id": id,
             # days=7
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1),
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(days=2),
             "iat": datetime.datetime.utcnow(),
         },
         "refresh_secret",

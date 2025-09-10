@@ -66,9 +66,9 @@ class RegisterApiView(APIView):
         user = serializer.save()
 
         # Send email
-        # subject = "Welcome to Tickoh Website"
-        # message = f"Dear {user.username},\n\nWelcome to Tickoh website! Thank you for registering."
-        # from_email = "tickoh@gmail.com"
+        # subject = "Welcome to Tamasha Website"
+        # message = f"Dear {user.username},\n\nWelcome to Tamasha website! Thank you for registering."
+        # from_email = "Tamasha@gmail.com"
         # to_email = user.email
         # send_mail(subject, message, from_email, [to_email])
 
@@ -1138,44 +1138,6 @@ class InvoiceDetailView(generics.RetrieveAPIView):
     def get_object(self):
         invoice_id = self.kwargs.get('pk')
         return Invoice.objects.get(id=invoice_id)
-
-
-
-
-# class InitiatePaymentView(APIView):
-#     def post(self, request, *args, **kwargs):
-#         invoice_number = request.data.get('invoice_number')
-#         phone = request.data.get('phone')
-#         fcm_token = request.data.get('fcm_token')
-
-        total_tickets_created = TicketType.objects.filter(event__in=events).aggregate(total_created=Sum('available_tickets'))['total_created'] or 0
-
-
-        total_tickets_sold = 0
-        total_revenue = 0.00
-
-        tickets_with_invoices = Ticket.objects.filter(event__in=events, invoice_number__isnull=False)
-
-        for ticket in tickets_with_invoices:
-            try:
-                invoice = Invoice.objects.get(invoice_number=ticket.invoice_number)
-                if invoice.is_paid:
-                    total_tickets_sold += invoice.ticket_quantity
-                    if invoice.invoice_amount is not None:
-                        total_revenue += float(invoice.invoice_amount)
-            except Invoice.DoesNotExist:
-                pass
-
-        dashboard_data = {
-            "total_events": total_events,
-            "total_revenue": total_revenue,
-            "total_tickets_sold": total_tickets_sold,
-            "total_tickets_created": total_tickets_created
-        }
-
-
-#         # Get the invoice
-#         invoice = get_object_or_404(Invoice, invoice_number=invoice_number)
 
 
 @csrf_exempt

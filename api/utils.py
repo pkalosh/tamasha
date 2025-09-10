@@ -28,7 +28,7 @@ from django.views.decorators.http import require_POST
 
 def send_email_with_attachment(email, attachment_path, event):
     # Prepare the email message
-    sender_email = "marketing@rahafest.com"
+    sender_email = "tamasha@gmail.com"
     subject = "Ticket"
     text_content = f"""We are pleased to inform you that your ticket purchase was successful. You can find the ticket details attached to this email.
 
@@ -166,8 +166,8 @@ def send_complementary_tickets(email, html_str):
         'Messages': [
             {
                 "From": {
-                    "Email": "marketing@rahafest.com",
-                    "Name": "Raha Rave"
+                    "Email": "tamasha@gmail.com",
+                    "Name": "SUMMER TIDE"
                 },
                 "To": [
                     {

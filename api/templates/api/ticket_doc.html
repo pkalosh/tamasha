@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Event Ticket</title>
+    <style>
+      body {
+        font-family: Arial, sans;
+        font-optical-sizing: auto;
+        font-weight: 500;
+        font-style: normal;
+        margin: 0;
+        padding: 0;
+      }
+
+      h4 {
+        font-size: 14px;
+        color: #333;
+        word-wrap: break-word;
+        /* Wrap long words to the next line */
+        word-break: break-all;
+        /* Break words at any character */
+        max-width: 100%;
+        /* Ensure the element doesn't exceed the container's width */
+        overflow-wrap: break-word;
+        /* Better compatibility with modern browsers */
+      }
+
+      p {
+        margin-bottom: 0.5rem;
+        padding: 0;
+        font-size: 12px;
+        color: #333;
+        word-wrap: break-word;
+        /* Wrap long words to the next line */
+        word-break: break-all;
+        /* Break words at any character */
+        max-width: 100%;
+        /* Ensure the element doesn't exceed the container's width */
+        overflow-wrap: break-word;
+        /* Better compatibility with modern browsers */
+      }
+
+      li {
+        font-size: 12px;
+        color: #333;
+        margin-bottom: 0.5rem;
+        word-wrap: break-word;
+        /* Wrap long words to the next line */
+        word-break: break-all;
+        /* Break words at any character */
+        max-width: 100%;
+        /* Ensure the element doesn't exceed the container's width */
+        overflow-wrap: break-word;
+        /* Better compatibility with modern browsers */
+      }
+
+      .ticket {
+        display: flex;
+        width: 100%;
+        max-width: 800px;
+        margin: 5px;
+        border: 2px solid #ccc;
+        border-radius: 25px;
+        padding: 20px;
+        background-color: #fff;
+        box-sizing: border-box;
+        border-left: 10px solid #b41818;
+        border-right: 10px solid #b41818;
+      }
+
+      .ticket-image img {
+        height: auto;
+        width: 100%;
+        object-fit: contain;
+      }
+
+      .qr-code {
+        align-self: center;
+        height: 100px;
+        width: 100px;
+        margin: 0 20px;
+        background-color: #ccc;
+        border-radius: 10px;
+      }
+
+      .qr-code img {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+      }
+
+      .event-details {
+        border-left: 1px solid #c3c3c3;
+        padding-left: 0.5rem;
+        margin-right: 0.5rem;
+      }
+
+      .ticket-details {
+        flex: 1;
+        padding: 0px;
+      }
+
+      .ticket-details ul {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0;
+      }
+
+      .banner {
+        align-self: center;
+        width: 150px;
+        height: 150px;
+        background-color: #ccc;
+        border-radius: 10px;
+        margin-left: 20px;
+      }
+
+      .banner img {
+        width: 100%;
+        height: 100%;
+        border-radius: 10px;
+        background-color: #ccc;
+        object-fit: cover;
+      }
+
+      .condition-title {
+        font-size: 12px;
+        margin-bottom: 0px;
+      }
+      .condition {
+        font-size: 10px;
+        margin-bottom: 0px;
+      }
+      .condition-item {
+        font-size: 8px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="ticket">
+
+      <div class="qr-code">
+        <img src="{{ticket_data.qr_code}}" alt="QR Code" />
+      </div>
+      <div class="event-details">
+        <h4>{{ticket_data.event}}</h4>
+        <p>Date: {{ticket_data.start_date}}</p>
+        <p>Time: {{ticket_data.start_time}}</p>
+        <p>Venue: {{ticket_data.location}}</p>
+      </div>
+      <div class="ticket-details">
+        <h4>Ticket Details</h4>
+        <ul>
+          <li style="font-weight: 700">{{ticket_data.ticket_type}}</li>
+          <li>
+            <span style="font-weight: 700">Ticket ID</span>
+            <br />
+            {{ticket_data.ticket_id}}
+          </li>
+          <li>
+            <span style="font-weight: 700">Name</span><br />
+            {{ticket_data.name}}
+          </li>
+        </ul>
+      </div>
+      <div class="banner">
+        <img src="{{ticket_data.event_banner}}" alt="Ticket Banner" />
+      </div>
+    </div>
+    <div>
+      <h3 class="condition-title">Terms and Conditions</h3>
+      <p class="condition" style="margin-top: 6px">
+        By purchasing a ticket through Tamasha Link, you agree to these terms and
+        conditions:
+      </p>
+      <ul style="margin-top: 6px">
+        <li class="condition-item">
+          Tickets are non-refundable and non-transferable. All sales are final;
+          verify your order before purchase.
+        </li>
+        <li class="condition-item">
+          Event management reserves the right to refuse admission.
+        </li>
+        <li class="condition-item">
+          A valid ticket is required for event entry.
+        </li>
+        <li class="condition-item">
+          Tamasha Link is not liable for lost, stolen, or damaged tickets;
+          replacement is at the event organizer’s discretion and may incur a
+          fee.
+        </li>
+        <li class="condition-item">
+          Tamasha Link is not responsible for any personal injury, property
+          damage, or other losses incurred at the event. Attendees assume all
+          risks.
+        </li>
+        <li class="condition-item">
+          Unauthorized resale or transfer of tickets is prohibited. Tickets from
+          unauthorized sources are invalid and entry will be denied.
+        </li>
+        <li class="condition-item">
+          For inquiries, contact Tamasha Link customer service at
+          <a href="mailto:tickets@tamashalink.com">tickets@tamashalink.com</a
+          >.
+        </li>
+      </ul>
+
+      <h3 class="condition-title">Cancellation Policy</h3>
+      <ul style="margin-top: 6px">
+        <li class="condition-item">
+          All ticket purchases are final and cannot be cancelled.
+        </li>
+        <li class="condition-item">
+          Once purchased, tickets cannot be returned, refunded, or exchanged,
+          except if the event is entirely cancelled by the organizer.
+        </li>
+        <li class="condition-item">
+          By purchasing a ticket, you agree to this cancellation policy.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

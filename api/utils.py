@@ -11,7 +11,7 @@ mailjet = Client(auth=(api_key, api_secret), version="v3.1")
 from mailjet_rest import Client
 from django.core.mail import EmailMultiAlternatives
 import json
-
+from .models import MpesaPayment, Invoice, MpesaStkPushRequestResponse, MpesaCallback
 import os
 import base64
 

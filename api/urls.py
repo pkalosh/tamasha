@@ -18,7 +18,7 @@ urlpatterns = [
     
 
     #Event Endpoints
-    path('tickets-by-org/<int:organization_id>/', TicketsByOrganizationView.as_view(), name='tickets-by-org'),
+    path('tickets-by-org/<int:organization_id>', TicketsByOrganizationView.as_view(), name='tickets-by-org'),
     path('create-event', CreateEventAPIView.as_view(), name='create-event'),
     path('list-events',ListEventAPIView.as_view(), name='list-events'),
     path('ticket-type', TicketTypeAPIView.as_view(), name='ticket-type'),
@@ -47,7 +47,7 @@ urlpatterns = [
     path('events/org-events/<int:organization_id>', EventListByOrganizationView.as_view(), name='org-events'),
     path('events/tickets/stats', TicketCountView.as_view(), name='ticket-stats'),
     path('organization-analysis', ClientTotalAnalysis.as_view(), name='client-analysis'),
-    path('organizations/<int:organization_id>/ticket-types/', TicketTypeListView.as_view(), name='ticket-types-list'),
+    path('organizations/<int:organization_id>/ticket-types', TicketTypeListView.as_view(), name='ticket-types-list'),
     path('kyc',EventOrganizationKYCApiView.as_view(),),
     path('kyc/<int:profile_id>',EventOrganizationKYCApiView.as_view(),),
 
@@ -63,10 +63,10 @@ urlpatterns = [
     path('ads/delete/<int:ad_id>', AdsAPIView.as_view(), name='delete-ad'),
     path('invoice-update/<int:pk>', InvoiceUpdateView.as_view(), name='invoice-update'),
     path('invoices/<int:pk>', InvoiceDetailView.as_view(), name='invoice-detail'),
-     path('ticket-statistics', TicketStatisticsView.as_view(), name='ticket-statistics'),
-     path('ticket-type-count', TicketCountView.as_view(), name='ticket-type-count'),
-     
-      path('events/<int:event_id>/tickets/', EventTicketsView.as_view(), name='event-tickets'),
-       path('export-mpesa-payments/', export_mpesa_payments_to_excel, name='export_mpesa_payments'),
+    path('ticket-statistics', TicketStatisticsView.as_view(), name='ticket-statistics'),
+    path('ticket-type-count', TicketCountView.as_view(), name='ticket-type-count'),
+    
+    path('events/<int:event_id>/tickets/', EventTicketsView.as_view(), name='event-tickets'),
+    path('export-mpesa-payments/', export_mpesa_payments_to_excel, name='export_mpesa_payments'),
 
 ]

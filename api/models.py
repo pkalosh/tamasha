@@ -239,6 +239,64 @@ def create_profile(sender, instance, created, **kwargs):
         if not hasattr(instance, 'profile'):
             Profile.objects.create(user=instance)
 
+
+class Role(models.Model):
+    """
+    Custom Role Model for Granular Permissions with permission management
+    """
+    ROLE_CHOICES = (
+        ('organization_admin', 'Organization Admin'),
+        ('staff', 'Staff'),
+    )
+    
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    description = models.TextField(blank=True)
+    profile = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+        ]
+        unique_together = ['name', 'profile']
+        
+    def __str__(self):
+        return f"{self.get_name_display()}"
+
+    def __str__(self):
+        return self.get_name_display()
+
+class Staff(models.Model):
+    """
+    Staff Member Model with Detailed Access Control 
+    """
+    STATUS_CHOICES = (
+        ('active', 'Active'),
+        ('suspended', 'Suspended'),
+        ('inactive', 'Inactive'),
+    )
+    
+    user = models.OneToOneField(User, on_delete=models.PROTECT, related_name='staff_profile')
+    employee_id = models.CharField(max_length=50, unique=True)
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, related_name='staff_members')
+    organization = models.ForeignKey(Profile, on_delete=models.PROTECT, related_name='staff')
+    
+    # Additional Staff Details
+    date_joined = models.DateField(auto_now_add=True)
+    last_login = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+
+    last_activity = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['employee_id']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.get_full_name()} - {self.role.get_name_display() if self.role else 'No Role'}"
+
+
 class Tag(models.Model):
     tag = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -57,7 +57,7 @@ from django.db.models import Count, Sum, F, Q
 
 # Create your views here.
 class RegisterApiView(APIView):
-    authentication_classes = [JWTAuthentication]
+    # authentication_classes = [JWTAuthentication]
 
     def post(self, request):
         data = request.data
@@ -76,34 +76,146 @@ class RegisterApiView(APIView):
 
 
 class LoginApiView(APIView):
-    # authentication_classes = [JWTAuthentication]
+    
+    def get_user_roles_and_details(self, user):
+        """
+        Get user roles and related details with clear role hierarchy
+        """
+        roles = []
+        user_details = {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+        }
+        
+        # Check for staff profile first (takes priority)
+        staff_data = None
+        has_staff_role = False
+        
+        try:
+            staff = user.staff_profile
+            if staff and staff.status == 'active':
+                staff_data = {
+                    'employee_id': staff.employee_id,
+                    'organization': self.get_organization_data(staff.organization),
+                    'role': self.get_role_data(staff.role),
+                    'status': staff.status,
+                    'date_joined': staff.date_joined.isoformat() if staff.date_joined else None,
+                    'last_activity': staff.last_activity.isoformat() if staff.last_activity else None,
+                }
+                
+                # Add staff role (this takes priority over profile-based roles)
+                if staff.role:
+                    roles.append(staff.role.name)
+                    has_staff_role = True
+                    
+        except AttributeError:
+            # User doesn't have staff_profile relationship
+            pass
+        
+        # Check if user is an event admin (independent role)
+        if hasattr(user, 'is_event_admin') and user.is_event_admin:
+            if 'event_admin' not in roles:
+                roles.append('event_admin')
+        
+        # Check if user has a profile - only add organization_admin if no staff role exists
+        if hasattr(user, 'profile') and user.profile:
+            user_details['profile_id'] = user.profile.id
+            # Only add organization_admin role if user doesn't have a staff-based role
+            if not has_staff_role:
+                roles.append('organization_admin')
+        
+        # Add basic user role if no other roles found
+        if not roles:
+            roles.append('user')
+        
+        return roles, user_details, staff_data
+    
+    def get_organization_data(self, organization):
+        """
+        Get organization data safely
+        """
+        if not organization:
+            return None
+            
+        return {
+            'id': organization.id,
+            'name': getattr(organization, 'organization_name', ''),
+            'address': getattr(organization, 'address', ''),
+            'city': getattr(organization, 'city', ''),
+            'phone': getattr(organization, 'phone', ''),
+            'status': getattr(organization, 'status', ''),
+        }
+    
+    def get_role_data(self, role):
+        """
+        Get role data safely
+        """
+        if not role:
+            return None
+            
+        return {
+            'name': role.name,
+            'display_name': role.get_name_display(),
+            'description': role.description,
+        }
+
     def post(self, request):
-        email = request.data["email"]
-        password = request.data["password"]
+        email = request.data.get("email")
+        password = request.data.get("password")
+        
+        if not email or not password:
+            raise exceptions.ValidationError("Email and password are required")
+        
         user = User.objects.filter(email=email).first()
-
         if user is None:
-            raise exceptions.AuthenticationFailed("Invalid Credentials !")
-
+            raise exceptions.AuthenticationFailed("Invalid Credentials!")
+            
         if not user.check_password(password):
             raise exceptions.AuthenticationFailed("Invalid Credentials")
-
+        
+        # Get user roles and details
+        roles, user_details, staff_data = self.get_user_roles_and_details(user)
+        
+        # Create tokens
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
+        
         UserToken.objects.create(
             user_id=user.id,
             token=refresh_token,
             expired_at=datetime.datetime.utcnow() + datetime.timedelta(days=7),
         )
-
+        
+        # Update staff last_login if applicable
+        if staff_data:
+            try:
+                staff = user.staff_profile
+                staff.last_login = datetime.datetime.now()
+                staff.save(update_fields=['last_login'])
+            except AttributeError:
+                pass
+        
         response = Response()
-        roles = [1984, 5150, 2001]
-        # response.set_cookie(key="token", value=access_token, httponly=True)
         response.set_cookie(
-            key="refresh_token", value=refresh_token, httponly=True, secure=True
+            key="refresh_token", 
+            value=refresh_token, 
+            httponly=True, 
+            secure=True
         )
-        response.data = {"token": access_token, "roles": roles}
-
+        
+        response_data = {
+            "token": access_token,
+            "roles": roles,
+            "user": user_details,
+        }
+        
+        # Add staff data if available
+        if staff_data:
+            response_data["staff"] = staff_data
+            
+        response.data = response_data
         return response
 
 
@@ -118,18 +230,49 @@ class UserApiView(APIView):
 class RefreshApiView(APIView):
     @throttle_classes([UserRateThrottle, AnonRateThrottle])
     def get(self, request):
-        # print(request.data)
         print(request.data)
+        
         refresh_token = request.COOKIES.get("refresh_token")
-        id = decode_refresh_token(refresh_token)
+        if not refresh_token:
+            raise exceptions.AuthenticationFailed("Refresh token not provided")
+        
+        try:
+            user_id = decode_refresh_token(refresh_token)
+        except Exception:
+            raise exceptions.AuthenticationFailed("Invalid refresh token")
+        
+        # Check if refresh token is valid and not expired
         if not UserToken.objects.filter(
-            user_id=id, expired_at__gt=datetime.datetime.now(tz=datetime.timezone.utc)
+            user_id=user_id, 
+            token=refresh_token,
+            expired_at__gt=datetime.datetime.now(tz=datetime.timezone.utc)
         ).exists():
-            raise exceptions.AuthenticationFailed("unauthenticated")
-
-        access_token = create_access_token(id)
-        roles = [1984, 5150, 2001]
-        return Response({"token": access_token, "roles": roles})
+            raise exceptions.AuthenticationFailed("Refresh token expired or invalid")
+        
+        # Get user object
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise exceptions.AuthenticationFailed("User not found")
+        
+        # Create new access token
+        access_token = create_access_token(user_id)
+        
+        # Use UserSerializer to get consistent user data with staff details
+        serializer = UserSerializer(
+            user, 
+            context={
+                'include_staff': True, 
+                'include_roles': True
+            }
+        )
+        
+        response_data = {
+            "token": access_token,
+            **serializer.data  # Includes user data, roles, and staff details
+        }
+        
+        return Response(response_data)
 
 
 class LogoutApiView(APIView):
@@ -158,7 +301,7 @@ class ForgotPasswordApiView(APIView):
             send_mail(
                 subject="Reset Your Password",
                 message='Click <a href="%s">here<a/> to reset your password' % url,
-                from_email="from@example.com",
+                from_email="tickets@tamashalink.com",
                 recipient_list=[email],
             )
         except Exception as e:
@@ -171,7 +314,7 @@ class ResetPasswordApiView(APIView):
     @throttle_classes([UserRateThrottle, AnonRateThrottle])
     def post(self, request):
         data = request.data
-        if data["password"] != data["password_confirm"]:
+        if data["password"] != data["confirm_password"]:
             raise exceptions.APIException("Password do not match!")
         reset_password = Reset.objects.filter(token=data["token"]).first()
         if not reset_password:
@@ -1055,7 +1198,7 @@ class SendComplementaryTickets(APIView):
                     {'<br>'.join(download_links)}
                 </ul>
                 <p>Best regards,</p>
-                <p>Raha Rave Team</p>
+                <p>Tamasha Link Team</p>
             </body>
             </html>
             """

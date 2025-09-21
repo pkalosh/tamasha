@@ -4,6 +4,8 @@ from .models import *
 # Register your models here.
 admin.site.register(User)
 admin.site.register(UserToken)
+admin.site.register(Role)
+admin.site.register(Staff)
 admin.site.register(Reset)
 admin.site.register(Transaction)
 admin.site.register(Subscription)

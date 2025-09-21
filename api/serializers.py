@@ -11,11 +11,12 @@ from .models import *
 
 class UserSerializer(ModelSerializer):
     profile_id = serializers.PrimaryKeyRelatedField(source='profile', read_only=True)
+    
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "password", "id","is_event_admin","profile_id"]
+        fields = ["first_name", "last_name", "email", "password", "id", "is_event_admin", "profile_id"]
         extra_kwargs = {"password": {"write_only": True}}
-
+    
     def create(self, validated_data):
         password = validated_data.pop("password", None)
         instance = self.Meta.model(**validated_data)
@@ -23,12 +24,80 @@ class UserSerializer(ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
-
+    
+    def to_representation(self, instance):
+        """
+        Add staff details to the serialized representation
+        """
+        data = super().to_representation(instance)
+        
+        # Add staff details if user has staff profile
+        try:
+            staff = instance.staff_profile
+            if staff:
+                data['staff'] = {
+                    'employee_id': staff.employee_id,
+                    'status': staff.status,
+                    'date_joined': staff.date_joined.isoformat() if staff.date_joined else None,
+                    'last_login': staff.last_login.isoformat() if staff.last_login else None,
+                    'last_activity': staff.last_activity.isoformat() if staff.last_activity else None,
+                    'role': {
+                        'name': staff.role.name,
+                        'display_name': staff.role.get_name_display(),
+                        'description': staff.role.description,
+                    } if staff.role else None,
+                    'organization': {
+                        'id': staff.organization.id,
+                        'name': staff.organization.organization_name,
+                        'address': staff.organization.address,
+                        'city': staff.organization.city,
+                        'phone': staff.organization.phone,
+                        'status': staff.organization.status,
+                    } if staff.organization else None,
+                }
+        except AttributeError:
+            # User doesn't have staff_profile relationship
+            pass
+        
+        # Add user roles
+        data['roles'] = self.get_user_roles(instance)
+        
+        return data
+    
+    def get_user_roles(self, user):
+        """
+        Get all user roles
+        """
+        roles = []
+        
+        # Check staff role
+        try:
+            staff = user.staff_profile
+            if staff and staff.status == 'active' and staff.role:
+                roles.append(staff.role.name)
+        except AttributeError:
+            pass
+        
+        # Check event admin
+        if hasattr(user, 'is_event_admin') and user.is_event_admin:
+            if 'event_admin' not in roles:
+                roles.append('event_admin')
+        
+        # Check profile admin (only if no staff role)
+        if hasattr(user, 'profile') and user.profile and not any('admin' in role for role in roles):
+            roles.append('organization_admin')
+        
+        # Default user role
+        if not roles:
+            roles.append('user')
+            
+        return roles
 
 class KYCSerializer(ModelSerializer):
     class Meta:
         model = Profile
         fields = [
+            "id",
             "organization_name",
             "address",
             "city",
@@ -45,6 +114,25 @@ class KYCSerializer(ModelSerializer):
             "cr_12",
         ]
 
+class StaffDetailSerializer(serializers.ModelSerializer):
+    role_name = serializers.CharField(source='role.name', read_only=True)
+    role_display_name = serializers.CharField(source='role.get_name_display', read_only=True)
+    organization_name = serializers.CharField(source='organization.organization_name', read_only=True)
+    user_full_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    
+    class Meta:
+        model = Staff
+        fields = [
+            'employee_id', 
+            'status', 
+            'date_joined', 
+            'last_login',
+            'last_activity',
+            'role_name',
+            'role_display_name',
+            'organization_name',
+            'user_full_name'
+        ]
 
 class ProfileSerializer(ModelSerializer):
     class Meta:

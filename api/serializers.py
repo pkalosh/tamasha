@@ -403,7 +403,6 @@ class InvoiceUpdateSerializer(serializers.ModelSerializer):
         model = Invoice
         fields = ['data','is_complementary']
         
-    
 
 class EventStatsSerializer(serializers.ModelSerializer):
     class Meta:

@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-etvq4(opoc^isvg8uw$s1lfhnpzsfsgl*r&7$n(5yjvs_@f0$="
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -166,7 +166,7 @@ REST_FRAMEWORK = {
     }
 }
 
-CSRF_TRUSTED_ORIGINS=["https://apiv1.tamashalink.com"]
+# CSRF_TRUSTED_ORIGINS=["https://apiv1.tamashalink.com"]
 
 CONSUMER_KEY = config('CONSUMER_KEY')
 CONSUMER_SECRET = config('CONSUMER_SECRET')

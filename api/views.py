@@ -45,9 +45,7 @@ from django.http import Http404
 from django.db.models import Count, Sum, F, Q
 import pandas as pd
 from django.http import HttpResponse
-
-
-
+from django.views.decorators.http import require_http_methods
 from rest_framework.decorators import throttle_classes
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 

@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 from django.core.files import File
 import uuid
 from decimal import Decimal
-
+from django.utils import timezone
 class UserManager(BaseUserManager):
     def create_user(self, email,first_name,last_name,password=None):
         """
@@ -298,13 +298,19 @@ class Staff(models.Model):
 
 
 class Tag(models.Model):
-    tag = models.CharField(max_length=255)
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="tags",
+        help_text="Organization profile this tag belongs to", 
+        blank=True, null=True
+    )
+    tag = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.tag
-    
+        return f"{self.tag} ({self.profile})"  # assuming profile has a 'name' field    
     class Meta:
         verbose_name = 'Tag'
         verbose_name_plural = 'Tags'
@@ -340,6 +346,21 @@ class Event(models.Model):
         app_label = 'api'
 
 
+class Schedule(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="schedules")
+    title = models.CharField(max_length=255)
+    schedule_banner = models.ImageField(upload_to="schedule_banners", blank=True, null=True)
+    genre = models.CharField(max_length=255, blank=True, null=True)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['start_time']
+
+    def __str__(self):
+        return f"{self.title} ({self.start_time} - {self.end_time})"
 
 class TicketType(models.Model):
     title = models.CharField(max_length=255)

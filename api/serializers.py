@@ -141,10 +141,10 @@ class ProfileSerializer(ModelSerializer):
 
 
 class TagSerializer(ModelSerializer):
+    profile_name = serializers.CharField(source='profile.organization_name', read_only=True)
     class Meta:
         model = Tag
-        fields = ["id", "tag"]
-
+        fields = ["id", "tag", "profile",'profile_name', "is_active", "created_at"]
 
 class EventSerializer(ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)

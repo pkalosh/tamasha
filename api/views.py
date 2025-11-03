@@ -468,18 +468,77 @@ class EventListByOrganizationView(generics.ListAPIView):
 #     serializer_class = EventSerializer
 
 
-class TagAPIView(generics.ListCreateAPIView):
-    queryset = Tag.objects.all()
-    serializer_class = TagSerializer
+class TagListCreateAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
 
-    def post(self, request, *args, **kwargs):
-        # Reject POST requests with MethodNotAllowed exception
-        raise MethodNotAllowed("POST")
+    def get(self, request):
+        user = request.user
+        if hasattr(user, "profile"):
+            tags = Tag.objects.filter(profile=user.profile)
+        else:
+            return Response({"detail": "User has no associated profile."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TagSerializer(tags, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        user = request.user
+        if not hasattr(user, "profile"):
+            return Response({"detail": "User has no associated profile."}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data.copy()
+        data["profile"] = user.profile.id  # auto-assign organization
+
+        serializer = TagSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class TagDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Tag.objects.all()
-    serializer_class = TagSerializer
+#  Retrieve
+class TagRetrieveAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, pk):
+        user = request.user
+        tag = get_object_or_404(Tag, pk=pk, profile=user.profile)
+        serializer = TagSerializer(tag)
+        return Response(serializer.data)
+
+
+#  Update
+class TagUpdateAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def put(self, request, pk):
+        user = request.user
+        tag = get_object_or_404(Tag, pk=pk, profile=user.profile)
+        serializer = TagSerializer(tag, data=request.data, partial=False)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        user = request.user
+        tag = get_object_or_404(Tag, pk=pk, profile=user.profile)
+        serializer = TagSerializer(tag, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+#  Delete
+class TagDeleteAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        user = request.user
+        tag = get_object_or_404(Tag, pk=pk, profile=user.profile)
+        tag.delete()
+        return Response({"detail": "Tag deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 class TicketTypeAPIView(generics.ListCreateAPIView):

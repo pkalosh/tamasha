@@ -36,6 +36,7 @@ urlpatterns = [
     path("events/public", PublicEventListView.as_view(), name="public-events"),
 
     path('ticket-type', TicketTypeAPIView.as_view(), name='ticket-type'),
+    
     path('org/<int:pk>/org-event',OrgEventListAPIView.as_view(),name='org-event'),
     path('events/<int:event_id>/event-ticket-type',TicketTypeListAPIView.as_view(), name='event-ticket-type'),
     path('create-invoice', InvoiceCreateView.as_view(), name='create-invoice'),
@@ -48,7 +49,7 @@ urlpatterns = [
     path("tags/<int:pk>", TagRetrieveAPIView.as_view(), name="tag-retrieve"),
     path("tags/<int:pk>/update", TagUpdateAPIView.as_view(), name="tag-update"),
     path("tags/<int:pk>/delete", TagDeleteAPIView.as_view(), name="tag-delete"),
-    
+
     # path('mpesa',views.lipa_na_mpesa_online, name="mpesa"),
     # path('mpesa_callback',views.mpesa_callback,name="mpesa_callback"),
     # path('initiate-payment', InitiatePayment.as_view(), name='initiate-payment'),

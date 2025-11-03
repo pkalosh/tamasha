@@ -24,7 +24,7 @@ admin.site.register(MpesaCallback)
 admin.site.register(MpesaPayment)
 admin.site.register(ComplementaryTicketDispatch)
 admin.site.register(EventsToScan)
-
+admin.site.register(Schedule)
 
 admin.site.register(Discount)
 admin.site.register(TicketCheckInLogger)

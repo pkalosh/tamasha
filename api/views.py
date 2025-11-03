@@ -405,40 +405,145 @@ class ProfileDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProfileSerializer
 
 
-class CreateEventAPIView(generics.CreateAPIView):
+# class CreateEventAPIView(generics.CreateAPIView):
+#     authentication_classes = [JWTAuthentication]
+#     queryset = Event.objects.all()
+#     serializer_class = EventSerializer
+
+
+# class EventPatchView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+
+#     @throttle_classes([UserRateThrottle, AnonRateThrottle])
+#     def patch(self, request, pk):
+#         try:
+#             event = Event.objects.get(pk=pk)
+#         except Event.DoesNotExist:
+#             return Response(
+#                 {"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         # Remove 'id' from request data to prevent updating it
+#         if "id" in request.data:
+#             del request.data["id"]
+#         if "organization" in request.data:
+#             del request.data["organization"]
+#         serializer = EventSerializer(event, data=request.data, partial=True)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class ListEventAPIView(generics.ListAPIView):
+#     queryset = Event.objects.all()
+#     serializer_class = EventSerializer
+
+
+class EventListCreateAPIView(APIView):
     authentication_classes = [JWTAuthentication]
-    queryset = Event.objects.all()
-    serializer_class = EventSerializer
 
+    def get(self, request):
+        events = Event.objects.all().prefetch_related("tags", "schedules")
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data)
 
-class EventPatchView(APIView):
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-
-    @throttle_classes([UserRateThrottle, AnonRateThrottle])
-    def patch(self, request, pk):
-        try:
-            event = Event.objects.get(pk=pk)
-        except Event.DoesNotExist:
-            return Response(
-                {"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Remove 'id' from request data to prevent updating it
-        if "id" in request.data:
-            del request.data["id"]
-        if "organization" in request.data:
-            del request.data["organization"]
-        serializer = EventSerializer(event, data=request.data, partial=True)
+    def post(self, request):
+        serializer = EventSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ListEventAPIView(generics.ListAPIView):
-    queryset = Event.objects.all()
-    serializer_class = EventSerializer
+class EventRetrieveAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, pk):
+        event = get_object_or_404(Event.objects.prefetch_related("schedules", "tags"), pk=pk)
+        serializer = EventSerializer(event)
+        return Response(serializer.data)
+
+
+class EventUpdateAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def patch(self, request, pk):
+        event = get_object_or_404(Event, pk=pk)
+        serializer = EventSerializer(event, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EventDeleteAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        event = get_object_or_404(Event, pk=pk)
+        event.delete()
+        return Response({"detail": "Event deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+class PublicEventListView(APIView):
+
+    def get(self, request):
+        events = Event.objects.filter(is_active=True)
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ------------------ SCHEDULE CRUD ------------------
+
+class ScheduleListCreateAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, event_id):
+        event = get_object_or_404(Event, pk=event_id)
+        schedules = event.schedules.all().order_by("start_time")
+        serializer = ScheduleSerializer(schedules, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, event_id):
+        event = get_object_or_404(Event, pk=event_id)
+        data = request.data.copy()
+        data["event"] = event.id
+        serializer = ScheduleSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(event=event)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ScheduleRetrieveAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, pk):
+        schedule = get_object_or_404(Schedule, pk=pk)
+        serializer = ScheduleSerializer(schedule)
+        return Response(serializer.data)
+
+
+class ScheduleUpdateAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def patch(self, request, pk):
+        schedule = get_object_or_404(Schedule, pk=pk)
+        serializer = ScheduleSerializer(schedule, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ScheduleDeleteAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        schedule = get_object_or_404(Schedule, pk=pk)
+        schedule.delete()
+        return Response({"detail": "Schedule deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 class OrgEventListAPIView(generics.RetrieveAPIView):

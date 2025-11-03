@@ -146,14 +146,34 @@ class TagSerializer(ModelSerializer):
         model = Tag
         fields = ["id", "tag", "profile",'profile_name', "is_active", "created_at"]
 
-class EventSerializer(ModelSerializer):
+
+class ScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Schedule
+        fields = [
+            "id",
+            "event",
+            "title",
+            "schedule_banner",
+            "genre",
+            "start_time",
+            "end_time",
+            "description",
+            "created_at",
+        ]
+        read_only_fields = ["created_at"]
+
+
+class EventSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
+    schedules = ScheduleSerializer(many=True, read_only=True)
 
     class Meta:
         model = Event
         fields = [
             "id",
             "title",
+            "event_type",
             "organization",
             "description",
             "start_date",
@@ -169,47 +189,39 @@ class EventSerializer(ModelSerializer):
             "meta_url",
             "updated_at",
             "created_at",
-            "is_active"
+            "is_active",
+            "schedules",  # added here
         ]
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        # Convert organization to dictionary
+        # organization info
         representation["organization"] = {
-            "organization_name": instance.organization.organization_name,
             "id": instance.organization.id,
-            # Add more organization data if needed
+            "organization_name": instance.organization.organization_name,
         }
-        # Serialize tags to a list of tag IDs
+        # tag info
         representation["tags"] = [
             {"id": tag.id, "tag": tag.tag} for tag in instance.tags.all()
-        ]        
+        ]
+        # schedule info (sorted by time)
+        representation["schedules"] = sorted(
+            representation["schedules"], key=lambda s: s["start_time"]
+        )
         return representation
 
-
     def create(self, validated_data):
-        tags_data = validated_data.pop("tags")  # Remove tags data from validated data
-        event = Event.objects.create(**validated_data)  # Create the event object
-
-        # Create tags and associate them with the event
-        for tag_data in tags_data:
-            print(tag_data)
-            tag = Tag.objects.get(id = tag_data.id)
+        tags_data = validated_data.pop("tags", [])
+        event = Event.objects.create(**validated_data)
+        for tag in tags_data:
             event.tags.add(tag)
-
         return event
 
     def update(self, instance, validated_data):
         tags_data = validated_data.pop("tags", None)
-        tags = instance.tags.all()
         instance = super().update(instance, validated_data)
-
         if tags_data is not None:
-            instance.tags.clear()
-            for tag_data in tags_data:
-                tag, _ = Tag.objects.get_or_create(**tag_data)
-                instance.tags.add(tag)
-
+            instance.tags.set(tags_data)
         return instance
 
 

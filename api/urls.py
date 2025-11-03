@@ -19,10 +19,23 @@ urlpatterns = [
 
     #Event Endpoints
     path('tickets-by-org/<int:organization_id>', TicketsByOrganizationView.as_view(), name='tickets-by-org'),
-    path('create-event', CreateEventAPIView.as_view(), name='create-event'),
-    path('list-events',ListEventAPIView.as_view(), name='list-events'),
+
+    # Events CRUD
+    path("events", EventListCreateAPIView.as_view(), name="event-list-create"),
+    path("events/<int:pk>", EventRetrieveAPIView.as_view(), name="event-retrieve"),
+    path("events/<int:pk>/update", EventUpdateAPIView.as_view(), name="event-update"),
+    path("events/<int:pk>/delete", EventDeleteAPIView.as_view(), name="event-delete"),
+
+    # Schedules CRUD
+    path("events/<int:event_id>/schedules", ScheduleListCreateAPIView.as_view(), name="schedule-list-create"),
+    path("schedules/<int:pk>", ScheduleRetrieveAPIView.as_view(), name="schedule-retrieve"),
+    path("schedules/<int:pk>/update", ScheduleUpdateAPIView.as_view(), name="schedule-update"),
+    path("schedules/<int:pk>/delete", ScheduleDeleteAPIView.as_view(), name="schedule-delete"),
+
+    #public events
+    path("events/public", PublicEventListView.as_view(), name="public-events"),
+
     path('ticket-type', TicketTypeAPIView.as_view(), name='ticket-type'),
-    path('events/<int:pk>/update-event', EventPatchView.as_view(), name='update-event'),
     path('org/<int:pk>/org-event',OrgEventListAPIView.as_view(),name='org-event'),
     path('events/<int:event_id>/event-ticket-type',TicketTypeListAPIView.as_view(), name='event-ticket-type'),
     path('create-invoice', InvoiceCreateView.as_view(), name='create-invoice'),
@@ -35,6 +48,7 @@ urlpatterns = [
     path("tags/<int:pk>", TagRetrieveAPIView.as_view(), name="tag-retrieve"),
     path("tags/<int:pk>/update", TagUpdateAPIView.as_view(), name="tag-update"),
     path("tags/<int:pk>/delete", TagDeleteAPIView.as_view(), name="tag-delete"),
+    
     # path('mpesa',views.lipa_na_mpesa_online, name="mpesa"),
     # path('mpesa_callback',views.mpesa_callback,name="mpesa_callback"),
     # path('initiate-payment', InitiatePayment.as_view(), name='initiate-payment'),

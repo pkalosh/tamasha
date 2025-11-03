@@ -316,10 +316,16 @@ class Tag(models.Model):
         verbose_name_plural = 'Tags'
         app_label = 'api'
 
+EVENT_TYPE = (
+    ('Music Festival', 'Music Festival'),
+    ('Outreach', 'Outreach'),
+    ('Indoor', 'Indoor'),
+)
 
 class Event(models.Model):
     title = models.CharField(max_length=255)
     organization = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    event_type = models.CharField(max_length=255, choices=EVENT_TYPE, blank=True, null=True)
     description = models.TextField()
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()

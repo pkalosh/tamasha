@@ -317,6 +317,14 @@ class Tag(models.Model):
         app_label = 'api'
 
 EVENT_TYPE = (
+    ('Social Pull', 'social'),
+    ('Events', 'events')
+
+)
+
+
+
+EVENT_CAT = (
     ('Music Festival', 'Music Festival'),
     ('Outreach', 'Outreach'),
     ('Indoor', 'Indoor'),
@@ -326,7 +334,9 @@ class Event(models.Model):
     title = models.CharField(max_length=255)
     organization = models.ForeignKey(Profile, on_delete=models.CASCADE)
     event_type = models.CharField(max_length=255, choices=EVENT_TYPE, blank=True, null=True)
+    event_category = models.CharField(max_length=255, choices=EVENT_CAT, blank=True, null=True)
     description = models.TextField()
+    attendance = models.IntegerField(default=0, blank=True, null=True)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     location = models.CharField(max_length=255,blank=True, null=True)

@@ -176,6 +176,7 @@ class EventSerializer(serializers.ModelSerializer):
             "event_type",
             "organization",
             "description",
+            "attendance",
             "start_date",
             "end_date",
             "location",

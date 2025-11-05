@@ -325,9 +325,14 @@ EVENT_TYPE = (
 
 
 EVENT_CAT = (
-    ('Music Festival', 'Music Festival'),
-    ('Outreach', 'Outreach'),
-    ('Indoor', 'Indoor'),
+    ("Outdoor & Hiking","Outdoor & Hiking"),
+    ("Live Music","Live Music"),
+    ("Sports & Fitness", "Sports & Fitness"),
+    ("Nightlife", "Nightlife"),
+    ("Festivals", "Festivals"),
+    ("Theatre & Shows", "Theatre & Shows"),
+    ("Art & Culture",  "Art & Culture"),
+    ("Food & Drink","Food & Drink")
 )
 
 class Event(models.Model):

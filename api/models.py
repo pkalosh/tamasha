@@ -317,15 +317,15 @@ class Tag(models.Model):
         app_label = 'api'
 
 EVENT_TYPE = (
-    ('Social_Pull', 'social'),
-    ('Events', 'events')
+    ('Social Pull', 'Social Pull'),
+    ('Events', 'Events')
 
 )
 
 
 
 EVENT_CAT = (
-    ('Music_Festival', 'Music Festival'),
+    ('Music Festival', 'Music Festival'),
     ('Outreach', 'Outreach'),
     ('Indoor', 'Indoor'),
 )

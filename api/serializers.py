@@ -359,16 +359,15 @@ class BulkTicketCreateSerializer(serializers.Serializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         
-        # Query events related to the rahafest instance
-        events = Event.objects.filter(organization=instance.rahafest.id)
+        events = Event.objects.filter(organization=instance.id)
         
         # Serialize the related events
         event_serializer = EventSerializer(events, many=True)
         
         # Assuming 'organization_name' and 'id' are fields in the related Profile model
         representation["Profile"] = {
-            "organization_name": instance.rahafest.organization_name,
-            "organization_id": instance.rahafest.id,
+            "organization_name": instance.organization_name,
+            "organization_id": instance.id,
             "events": event_serializer.data  # Serialize the events
         }
         

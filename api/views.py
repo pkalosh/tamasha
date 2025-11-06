@@ -681,6 +681,8 @@ class TicketTypeUpdateAPIView(generics.UpdateAPIView):
 
 
 class TicketTypeDeleteAPIView(generics.DestroyAPIView):
+    authentication_classes = [JWTAuthentication]
+
     queryset = TicketType.objects.all()
 
     @throttle_classes([UserRateThrottle, AnonRateThrottle])
@@ -693,7 +695,7 @@ class TicketTypeDeleteAPIView(generics.DestroyAPIView):
 
 
 class TicketListView(generics.ListCreateAPIView):
-    authentication_classes = [JWTAuthentication]
+    # authentication_classes = [JWTAuthentication]
     queryset = Ticket.objects.all()
     serializer_class = BulkTicketCreateSerializer
 

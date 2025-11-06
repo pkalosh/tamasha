@@ -337,16 +337,16 @@ class BulkTicketCreateSerializer(serializers.Serializer):
         return data
 
     def create(self, validated_data):
-        invoice_number = self.context.get('invoice_number')
-        mpesa_receipt = self.context.get('mpesa_receipt')
+        # invoice_number = self.context.get('invoice_number')
+        # mpesa_receipt = self.context.get('mpesa_receipt')
         
         tickets_data = validated_data.pop('attendeeInfo')
         
         tickets = []
         print(tickets_data)
         for ticket_data in tickets_data:
-            ticket_data['invoice_number'] = invoice_number
-            ticket_data['mpesa_receipt']=mpesa_receipt
+            # ticket_data['invoice_number'] = invoice_number
+            # ticket_data['mpesa_receipt']=mpesa_receipt
             ticket = Ticket.objects.create(**ticket_data)
             
             tickets.append(ticket)

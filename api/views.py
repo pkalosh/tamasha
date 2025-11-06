@@ -703,11 +703,14 @@ class TicketListView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        print("Creating tickets with data:", serializer.validated_data)
+        print(f"valid serializer: {serializer.is_valid()}")
         data = serializer.save()
         tickets_data = [
             TicketCreateSerializer(ticket).data for ticket in data["tickets"]
         ]
         # payment_data = PaymentSerializer(data['payment']).data
+        print(f"Tickets data: {tickets_data}")
         response_data = {
             "attendeeInfo": tickets_data,
         }

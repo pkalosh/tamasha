@@ -91,5 +91,5 @@ urlpatterns = [
     path('admin/tickets', views.TicketListAPIView.as_view(), name='ticket_list_api'),
     path('admin/tickets/<int:pk>', views.TicketDetailAPIView.as_view(), name='ticket_detail_api'),
     path('admin/tickets/<int:pk>/close', views.mark_ticket_closed, name='mark_ticket_closed_api'),
-
+    path('verify-ticket', views.VerifyTicketAPIView.as_view(), name='verify_ticket_api'),
 ]

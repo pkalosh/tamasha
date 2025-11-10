@@ -516,3 +516,11 @@ class SupportTicketSerializer(serializers.ModelSerializer):
         # Auto-set status to 'open' and created_at
         ticket = SupportTicket.objects.create(status='open', **validated_data)
         return ticket
+
+class VerifyTicketSerializer(serializers.Serializer):
+    ticket_code = serializers.CharField(max_length=255, required=True)
+    
+    def validate_ticket_code(self, value):
+        if not Ticket.objects.filter(ticket_code=value).exists():
+            raise serializers.ValidationError("Ticket with this code does not exist.")
+        return value

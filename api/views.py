@@ -1624,3 +1624,61 @@ def mark_ticket_closed(request, pk):
         'message': f'Ticket {ticket.subject} marked as closed.',
         'data': SupportTicketSerializer(ticket).data
     })
+
+
+class VerifyTicketAPIView(APIView):    
+    def post(self, request):
+        serializer = VerifyTicketSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                "success": False,
+                "message": "Invalid ticket code provided.",
+                "errors": serializer.errors,
+                "data": None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        ticket_code = serializer.validated_data['ticket_code']
+        ticket = get_object_or_404(Ticket, ticket_code=ticket_code)
+        
+        # Check 2: Confirm invoice is paid (via is_paid or linked Invoice)
+        if not ticket.is_paid:
+            if ticket.invoice_id and hasattr(ticket.invoice_id, 'is_paid') and ticket.invoice_id.is_paid:
+                ticket.is_paid = True  # Sync if needed
+                ticket.save(update_fields=['is_paid'])
+            else:
+                return Response({
+                    "success": False,
+                    "message": "Ticket is not paid. Please complete payment first.",
+                    "data": None
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check 3: Confirm no check-in logs (scan_in_at not null)
+        has_checkin = TicketCheckInLogger.objects.filter(
+            ticket=ticket, 
+            scan_in_at__isnull=False
+        ).exists()
+        
+        if has_checkin:
+            return Response({
+                "success": False,
+                "message": "This ticket has already been checked in.",
+                "data": None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # All checks passed
+        response_data = {
+            "ticket_code": ticket.ticket_code,
+            "first_name": ticket.first_name,
+            "last_name": ticket.last_name,
+            "event": str(ticket.event),  # Assuming Event has __str__
+            "ticket_type": str(ticket.ticket_type),  # Assuming TicketType has __str__
+            "is_paid": ticket.is_paid,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+            "status": "Ticket is Valid - Ready for check-in",
+        }
+        
+        return Response({
+            "success": True,
+            "message": "Ticket verified successfully. Ready for check-in.",
+            "data": response_data
+        }, status=status.HTTP_200_OK)

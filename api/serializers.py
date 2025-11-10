@@ -201,6 +201,10 @@ class EventSerializer(serializers.ModelSerializer):
         representation["organization"] = {
             "id": instance.organization.id,
             "organization_name": instance.organization.organization_name,
+            "organization_address": instance.organization.address,
+            "organization_phone": instance.organization.phone,
+            "organization_city": instance.organization.city,
+            "organization_postcode": instance.organization.postcode
         }
         # tag info
         representation["tags"] = [

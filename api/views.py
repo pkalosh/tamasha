@@ -48,7 +48,7 @@ from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from rest_framework.decorators import throttle_classes
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
-
+from .mpesa import Mpesa
 from django.db.models import Count, Sum, F, Q
 logger = logging.getLogger(__name__)
 
@@ -986,14 +986,14 @@ class InitiatePayment(APIView):
             }
 
             try:
-                # lipa_na_mpesa_online(
-                #     invoice_id,
-                #     invoice_number,
-                #     total_amount,
-                #     phone,
-                #     fcm_token,
-                #     primary_email,
-                # )
+                Mpesa.initiate_stk_push(
+                    invoice_id,
+                    invoice_number,
+                    total_amount,
+                    phone,
+                    fcm_token,
+                    primary_email,
+                )
                 return Response(response_data, status=status.HTTP_200_OK)
             except Exception as e:
                 print(e)
@@ -1099,82 +1099,6 @@ class InitiatePayment(APIView):
 #         logger.error(f"Callback reception error: {e}")
 #         return JsonResponse({"error": str(e)}, status=500)
 
-
-# def lipa_na_mpesa_online(
-#     invoice_id, invoice_number, total_amount, phone, fcm_token, primary_email
-# ):
-
-#     # is_test_env = settings.IS_TEST_ENV
-#     # if is_test_env==True:
-#     #     total_amount = 1
-#     # else:
-#     #     total_amount = total_amount
-
-#     access_token = MpesaAccessToken.validated_mpesa_access_token
-#     print(access_token)
-#     # api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
-#     api_url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
-#     headers = {"Authorization": "Bearer %s" % access_token}
-#     request = {
-#         "BusinessShortCode": LipanaMpesaPpassword.Business_short_code,
-#         "Password": LipanaMpesaPpassword.decode_password,
-#         "Timestamp": LipanaMpesaPpassword.lipa_time,
-#         "TransactionType": "CustomerPayBillOnline",
-#         # "Amount": 1,
-#         "Amount": total_amount,
-#         "PartyA": phone,
-#         # "PartyA": 254700494222,
-#         "PartyB": LipanaMpesaPpassword.Business_short_code,
-#         "PhoneNumber": phone,
-#         # "PhoneNumber": 254700494222,
-#         "CallBackURL": settings.MPESA_CALLBACK_URL,
-#         "AccountReference": f"{invoice_number}",
-#         "TransactionDesc": f"Payment for: {invoice_number}",
-#     }
-
-#     response = requests.post(api_url, json=request, headers=headers)
-#     print(json.loads(response.text))
-#     if response.status_code == 200:
-#         response_data = response.json()
-#         print("Response Data:", response_data)
-#         merchant_request_id = response_data.get("MerchantRequestID", "")
-#         checkout_request_id = response_data.get("CheckoutRequestID", "")
-#         response_code = response_data.get("ResponseCode", "")
-#         response_description = response_data.get("ResponseDescription", "")
-#         customer_message = response_data.get("CustomerMessage", "")
-#         # print("Merchant Request ID:", merchant_request_id)
-#         # print("Checkout Request ID:", checkout_request_id)
-#         # print("Response Code:", response_code)
-#         # print("Response Description:", response_description)
-#         # print("Customer Message:", customer_message)
-#         print("HERE")
-#         mpesa_stk_push_data = {
-#             "merchant_request_id": merchant_request_id,
-#             "checkout_request_id": checkout_request_id,
-#             "response_code": response_code,
-#             "response_description": response_description,
-#             "customer_message": customer_message,
-#             "invoice_number": invoice_number,
-#             "is_paid": False,
-#             "fcm_token": fcm_token,
-#             "primary_email": primary_email,
-#             "amount": total_amount,
-#         }
-#         print("LL")
-#         serializer = MpesaStkPushRequestResponseSerializer(data=mpesa_stk_push_data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return HttpResponse("Success", status=200)
-#         else:
-#             print(serializer)
-#             return HttpResponse("Failed to save data", status=400)
-
-#     try:
-#         pass
-
-#     except Exception as e:
-#         print(e)
-#     return HttpResponse("SOme stuff", status=200)
 
 
 def generate_invoice_pdf(

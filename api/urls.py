@@ -52,7 +52,7 @@ urlpatterns = [
 
     # path('mpesa',views.lipa_na_mpesa_online, name="mpesa"),
     # path('mpesa_callback',views.mpesa_callback,name="mpesa_callback"),
-    # path('initiate-payment', InitiatePayment.as_view(), name='initiate-payment'),
+    path('initiate-payment', InitiatePayment.as_view(), name='initiate-payment'),
     # path('mpesa_stk_push', MpesaCallBackUrlAPIView.as_view(), name='mpesa_stk_push_callback_url'),
     # path('pdf',views.generate_invoice_pdf,name='pdf'),
 

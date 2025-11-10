@@ -87,6 +87,12 @@ class Mpesa:
                 response_code = response_data.get("ResponseCode", "")
                 response_description = response_data.get("ResponseDescription", "")
                 customer_message = response_data.get("CustomerMessage", "")
+                
+                print("Merchant Request ID:", merchant_request_id)
+                print("Checkout Request ID:", checkout_request_id)
+                print("Response Code:", response_code)
+                print("Response Description:", response_description)
+                print("Customer Message:", customer_message)
 
                 mpesa_stk_push_data = {
                     "merchant_request_id": merchant_request_id,

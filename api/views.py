@@ -49,6 +49,7 @@ from django.views.decorators.http import require_http_methods
 from rest_framework.decorators import throttle_classes
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from .mpesa import Mpesa
+import re
 from django.db.models import Count, Sum, F, Q
 logger = logging.getLogger(__name__)
 
@@ -1024,152 +1025,167 @@ def mpesa_callback(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 class InitiatePayment(APIView):
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
-    @throttle_classes([UserRateThrottle, AnonRateThrottle])
     def post(self, request, *args, **kwargs):
         try:
             data = request.data
-
             invoice_number = data.get("invoice_number")
             phone = data.get("phone")
             fcm_token = data.get("fcm_token")
             primary_email = data.get("primary_email")
 
+            # Validate required fields early
+            if not invoice_number:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Invoice number is required",
+                        "data": None
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate and normalize phone number (Kenyan M-Pesa format)
+            if not phone:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Phone number is required",
+                        "data": None
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            def normalize_kenyan_phone(phone_str):
+                phone_str = re.sub(r'[^\d]', '', phone_str)  # Strip non-digits
+                if phone_str.startswith('0'):
+                    phone_str = '254' + phone_str[1:]  # 07xx -> 2547xx
+                elif phone_str.startswith('7') and len(phone_str) == 9:
+                    phone_str = '254' + phone_str  # 7xx -> 2547xx
+                elif phone_str.startswith('254') and len(phone_str) == 12:
+                    pass  # Already correct
+                elif phone_str.startswith('+254') and len(phone_str) == 13:
+                    phone_str = phone_str[1:]  # +254 -> 254
+                else:
+                    raise ValueError("Invalid phone number format. Use 2547xxxxxxxx, 07xxxxxxxxx, or +2547xxxxxxxx.")
+                return phone_str
+
+            try:
+                phone = normalize_kenyan_phone(phone)
+            except ValueError as ve:
+                return Response(
+                    {
+                        "success": False,
+                        "message": str(ve),
+                        "data": None
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Retrieve the Invoice instance
             try:
                 invoice = Invoice.objects.get(invoice_number=invoice_number)
-                total_amount = invoice.invoice_amount
-                invoice_id = invoice.id
             except Invoice.DoesNotExist:
                 return Response(
-                    {"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND
+                    {
+                        "success": False,
+                        "message": "Invoice not found",
+                        "data": None
+                    },
+                    status=status.HTTP_404_NOT_FOUND
                 )
 
-            response_data = {
-                "id": invoice_id,
-                "invoice_number": invoice_number,
-                "total_amount": total_amount,
-                "phone": phone,
-                "fcm_token": fcm_token,
-                "payment_status": "Pending",
-                "primary_email": primary_email,
-            }
+            # Validate invoice amount
+            if invoice.invoice_amount is None:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Invoice amount is not set or invalid",
+                        "data": None
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             try:
-                Mpesa.initiate_stk_push(
-                    invoice_id,
-                    invoice_number,
-                    total_amount,
-                    phone,
-                    fcm_token,
-                    primary_email,
-                )
-                return Response(response_data, status=status.HTTP_200_OK)
-            except Exception as e:
-                print(e)
+                total_amount = float(invoice.invoice_amount)
+                if total_amount <= 0:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Invoice amount must be greater than zero",
+                            "data": None
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except (ValueError, TypeError) as e:
                 return Response(
-                    {"error": "Payment initiation failed", "details": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    {
+                        "success": False,
+                        "message": "Invalid invoice amount format",
+                        "details": str(e),
+                        "data": None
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
+            invoice_id = invoice.id
+
+            # Instantiate Mpesa (this triggers token/password generation)
+            mpesa = Mpesa()
+
+            # Call with correct order: invoice_number, total_amount, phone, fcm_token, primary_email, invoice_id
+            stk_response = mpesa.initiate_stk_push(
+                invoice_number=invoice_number,  # str
+                total_amount=total_amount,  # float/int
+                phone=phone,  # normalized: "2547xxxxxxxx"
+                fcm_token=fcm_token,
+                primary_email=primary_email,
+                invoice_id=invoice_id  # int (now last, as per signature)
+            )
+
+            if stk_response["success"]:
+                response_data = {
+                    "id": invoice_id,
+                    "invoice_number": invoice_number,
+                    "total_amount": total_amount,
+                    "phone": phone,  # Normalized phone returned for confirmation
+                    "fcm_token": fcm_token,
+                    "payment_status": "Pending",
+                    "primary_email": primary_email,
+                    "merchant_request_id": stk_response["data"].get("MerchantRequestID"),
+                    "checkout_request_id": stk_response["data"].get("CheckoutRequestID"),
+                }
+                return Response(
+                    {
+                        "success": True,
+                        "message": "Payment initiation successful. Please check your phone for the M-Pesa prompt.",
+                        "data": response_data
+                    },
+                    status=status.HTTP_200_OK
+                )
+            else:
+                # M-Pesa-specific failures return 400 (client error) instead of 500 for better semantics
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Payment initiation failed",
+                        "details": stk_response.get("error"),
+                        "data": None
+                    },
+                    status=status.HTTP_400_BAD_REQUEST  # Changed from 500 to 400
+                )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-# @require_http_methods(["POST"])
-# @csrf_exempt
-# def mpesa_invoice_callback(request):
-#     """
-#     Handles M-Pesa STK callback for invoice/ticket payments.
-#     Parses callback, updates invoice, creates tickets, and saves payment record.
-#     """
-#     try:
-#         stk_callback_response = json.loads(request.body.decode("utf-8"))
-#         logger.info("M-Pesa callback received for invoice flow")
-#         MpesaCallback.objects.create(body=json.dumps(stk_callback_response))
-
-#         body = stk_callback_response.get("Body", {})
-#         stk_callback = body.get("stkCallback", {})
-#         if not stk_callback:
-#             logger.warning("Invalid callback structure: No stkCallback")
-#             return HttpResponse("Invalid callback", status=400)
-
-#         merchant_request_id = stk_callback.get("MerchantRequestID", "")
-#         checkout_request_id = stk_callback.get("CheckoutRequestID", "")
-
-#         try:
-#             # Use the utility to extract details
-#             details = extract_payment_details(stk_callback)
-#             logger.info(f"Payment details extracted: {details}")
-
-#             # Fetch related objects
-#             current_stk_request = get_object_or_404(
-#                 MpesaStkPushRequestResponse,
-#                 checkout_request_id=checkout_request_id,
-#                 merchant_request_id=merchant_request_id,
-#             )
-#             current_invoice = get_object_or_404(
-#                 Invoice, invoice_number=current_stk_request.invoice_number
-#             )
-
-#             # Update invoice as paid
-#             current_invoice.is_paid = True
-#             current_invoice.paid_at = timezone.now()
-#             current_invoice.mpesa_receipt = details["mpesa_receipt_number"]
-#             current_invoice.save()
-#             logger.info(f"Invoice {current_invoice.invoice_number} marked as paid")
-
-#             # Domain-specific: Create bulk tickets
-#             tickets = current_invoice.data
-#             if "payment" in tickets and "email_to" in tickets["payment"]:
-#                 email_to = tickets["payment"]["email_to"]
-#                 serializer = BulkTicketCreateSerializer(
-#                     data=tickets,
-#                     context={
-#                         "email_to": email_to,
-#                         "invoice_number": current_invoice,
-#                         "mpesa_receipt": details["mpesa_receipt_number"],
-#                     },
-#                 )
-#                 if serializer.is_valid():
-#                     serializer.save()
-#                     logger.info("Tickets created successfully")
-#                 else:
-#                     logger.error(f"Ticket creation failed: {serializer.errors}")
-#             else:
-#                 logger.warning("No ticket data or email in invoice")
-
-#             # Save M-Pesa payment record
-#             MpesaPayment.objects.create(
-#                 merchant_request_id=merchant_request_id,
-#                 checkout_request_id=checkout_request_id,
-#                 result_code=stk_callback["ResultCode"],
-#                 result_desc=stk_callback.get("ResultDesc", ""),
-#                 amount=details["amount"],
-#                 mpesa_receipt_number=details["mpesa_receipt_number"],
-#                 transaction_date=details["transaction_date"],
-#                 phone_number=details["phone_number"],
-#                 invoice_number=current_invoice,
-#             )
-#             logger.info("M-Pesa payment record saved")
-
-#             return HttpResponse("success", status=200)
-
-#         except ValueError as ve:
-#             logger.error(f"Payment details error: {ve}")
-#             return HttpResponse(f"Payment validation error: {ve}", status=400)
-#         except Exception as e:
-#             logger.error(f"Processing error for invoice callback: {e}")
-#             return HttpResponse("Processing error", status=500)
-
-#     except json.JSONDecodeError:
-#         logger.error("Invalid JSON in callback body")
-#         return HttpResponse("Invalid JSON", status=400)
-#     except Exception as e:
-#         logger.error(f"Callback reception error: {e}")
-#         return JsonResponse({"error": str(e)}, status=500)
-
-
+            print(f"Unexpected error in InitiatePayment: {e}")  # Server-side log
+            return Response(
+                {
+                    "success": False,
+                    "message": "An unexpected error occurred during payment initiation",
+                    "details": str(e),
+                    "data": None
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR  # Truly unexpected -> 500
+            )
 
 def generate_invoice_pdf(
     request,

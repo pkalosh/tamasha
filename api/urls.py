@@ -81,7 +81,15 @@ urlpatterns = [
     path('ticket-statistics', TicketStatisticsView.as_view(), name='ticket-statistics'),
     path('ticket-type-count', TicketCountView.as_view(), name='ticket-type-count'),
     
-    path('events/<int:event_id>/tickets/', EventTicketsView.as_view(), name='event-tickets'),
-    path('export-mpesa-payments/', export_mpesa_payments_to_excel, name='export_mpesa_payments'),
+    path('events/<int:event_id>/tickets', EventTicketsView.as_view(), name='event-tickets'),
+    path('export-mpesa-payments', export_mpesa_payments_to_excel, name='export_mpesa_payments'),
+
+    # Public contact API
+    path('contact', views.ContactAPIView.as_view(), name='contact_api'),
+    
+    # Admin API views
+    path('admin/tickets', views.TicketListAPIView.as_view(), name='ticket_list_api'),
+    path('admin/tickets/<int:pk>', views.TicketDetailAPIView.as_view(), name='ticket_detail_api'),
+    path('admin/tickets/<int:pk>/close', views.mark_ticket_closed, name='mark_ticket_closed_api'),
 
 ]

@@ -486,3 +486,33 @@ class TicketSerializer(serializers.ModelSerializer):
 
         return representation
 
+
+class SupportTicketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportTicket
+        fields = ['first_name', 'last_name', 'email', 'phone_number', 'subject', 'message', 'category']
+        extra_kwargs = {
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+            'email': {'required': True},
+            'phone_number': {'required': True},
+            'subject': {'required': True},
+            'message': {'required': True},
+            'category': {'required': True},
+        }
+    
+    # def validate_phone_number(self, value):
+    #     import re
+    #     if not re.match(r'^\+?254[17]\d{8}$', value.replace(' ', '').replace('-', '')):
+    #         raise serializers.ValidationError('Invalid Kenyan phone number format. Use e.g., 254712345678 or +254712345678.')
+    #     return value
+    
+    def validate_email(self, value):
+        if not value:
+            raise serializers.ValidationError('Valid email is required.')
+        return value
+    
+    def create(self, validated_data):
+        # Auto-set status to 'open' and created_at
+        ticket = SupportTicket.objects.create(status='open', **validated_data)
+        return ticket

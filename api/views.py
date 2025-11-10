@@ -15,6 +15,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import exceptions
 from rest_framework.authentication import get_authorization_header
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 import random
 from django.contrib.auth.decorators import login_required
 from .serializers import *
@@ -26,6 +29,7 @@ from django.core.mail import send_mail
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
 from rest_framework.decorators import action
 import os
 import json
@@ -1568,3 +1572,55 @@ def export_mpesa_payments_to_excel(request):
         df.to_excel(writer, index=False, sheet_name='Payments')
 
     return response
+
+
+
+# Public API View: POST for Contact Form Submission
+class ContactAPIView(APIView):
+    
+    def post(self, request):
+        serializer = SupportTicketSerializer(data=request.data)
+        if serializer.is_valid():
+            ticket = serializer.save()
+            return Response({
+                'success': True,
+                'message': 'Your enquiry has been submitted successfully. We will get back to you soon.',
+                'data': SupportTicketSerializer(ticket).data
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'success': False,
+            'message': 'Please correct the errors below.',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+# Admin API Views (Staff-only)
+class TicketListAPIView(ListAPIView):
+    authentication_classes = [JWTAuthentication]
+    queryset = SupportTicket.objects.all()
+    serializer_class = SupportTicketSerializer
+
+class TicketDetailAPIView(RetrieveUpdateAPIView):
+    authentication_classes = [JWTAuthentication]
+    queryset = SupportTicket.objects.all()
+    serializer_class = SupportTicketSerializer
+    lookup_field = 'pk'
+    
+    def perform_update(self, serializer):
+        # Allow status updates (e.g., to 'closed')
+        if 'status' in serializer.validated_data:
+            serializer.validated_data['updated_at'] = timezone.now()
+        serializer.save()
+
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+def mark_ticket_closed(request, pk):
+    ticket = get_object_or_404(SupportTicket, pk=pk)
+    ticket.status = 'closed'
+    ticket.save()
+    return Response({
+        'success': True,
+        'message': f'Ticket {ticket.subject} marked as closed.',
+        'data': SupportTicketSerializer(ticket).data
+    })

@@ -678,3 +678,37 @@ class TicketCheckInLogger(models.Model):
         verbose_name = 'TicketCheckInLogger'
         verbose_name_plural = 'TicketCheckInLoggers'
         app_label = 'api'
+
+
+class SupportTicket(models.Model):
+    CATEGORY_CHOICES = [
+        ('ticket_enquiry', 'Ticket Enquiry'),
+        ('mpesa_issue', 'M-Pesa Issue'),
+        ('pdf_not_sent', 'Tickets PDF Not Sent'),
+        ('other', 'Other'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+    ]
+    
+    first_name = models.CharField(max_length=100, verbose_name="First Name")
+    last_name = models.CharField(max_length=100, verbose_name="Last Name")
+    email = models.EmailField(verbose_name="Email")
+    phone_number = models.CharField(max_length=15, verbose_name="Phone Number")
+    subject = models.CharField(max_length=200)
+    message = models.TextField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Support Ticket"
+        verbose_name_plural = "Support Tickets"
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.subject}"

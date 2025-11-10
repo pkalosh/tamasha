@@ -50,14 +50,11 @@ urlpatterns = [
     path("tags/<int:pk>/update", TagUpdateAPIView.as_view(), name="tag-update"),
     path("tags/<int:pk>/delete", TagDeleteAPIView.as_view(), name="tag-delete"),
 
-    # path('mpesa',views.lipa_na_mpesa_online, name="mpesa"),
-    # path('mpesa_callback',views.mpesa_callback,name="mpesa_callback"),
+    path('mpesa_callback',views.mpesa_callback,name="mpesa_callback"),
     path('initiate-payment', InitiatePayment.as_view(), name='initiate-payment'),
-    # path('mpesa_stk_push', MpesaCallBackUrlAPIView.as_view(), name='mpesa_stk_push_callback_url'),
     # path('pdf',views.generate_invoice_pdf,name='pdf'),
 
     path('tickets/count', TicketCountView.as_view(), name='ticket-count'),
-    path('query-status',views.query_transaction,name='query-status'),
     path('events/tickets/stats', TicketCountView.as_view(), name='ticket-stats'),
     path('organization-analysis', ClientTotalAnalysis.as_view(), name='client-analysis'),
 

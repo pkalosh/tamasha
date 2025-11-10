@@ -826,98 +826,6 @@ class TicketTypeListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# class MpesaCallBackUrlAPIView(APIView):
-
-#     def post(self, request, format=None):
-#         body = request.data
-#         if not body:
-#             return Response(
-#                 {"error": "No callback data received"},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-#         if body:
-#             mpesa = MpesaResponseBody.objects.create(body=body)
-
-#             mpesa_body = mpesa.body
-#             print(mpesa_body)
-
-#             try:
-#                 result_code = mpesa_body["Body"]["stkCallback"]["ResultCode"]
-#                 result_desc = mpesa_body["Body"]["stkCallback"]["ResultDesc"]
-#                 checkout_request_id = mpesa_body["Body"]["stkCallback"][
-#                     "CheckoutRequestID"
-#                 ]
-#                 merchant_request_id = mpesa_body["Body"]["stkCallback"][
-#                     "MerchantRequestID"
-#                 ]
-#                 amount = mpesa_body["Body"]["stkCallback"]["CallbackMetadata"]["Item"][
-#                     0
-#                 ]["Value"]
-#                 mpesa_receipt_number = mpesa_body["Body"]["stkCallback"][
-#                     "CallbackMetadata"
-#                 ]["Item"][1]["Value"]
-#                 print(mpesa_receipt_number)
-#                 transaction_date = mpesa_body["Body"]["stkCallback"][
-#                     "CallbackMetadata"
-#                 ]["Item"][3]["Value"]
-#                 phone_number = mpesa_body["Body"]["stkCallback"]["CallbackMetadata"][
-#                     "Item"
-#                 ][4]["Value"]
-#                 try:
-#                     txn = Transaction.objects.get(
-#                         checkout_request_id=checkout_request_id
-#                     )
-#                     txn.receipt_no = mpesa_receipt_number
-#                     txn.amount = amount
-#                     txn.updated = datetime.strptime(
-#                         str(transaction_date), "%Y%m%d%H%M%S"
-#                     )
-
-#                     txn.status = "Complete"
-#                     txn.save()
-#                 except Transaction.DoesNotExist:
-#                     return Response(
-#                         {"error": "Transaction does not exist."},
-#                         status=status.HTTP_400_BAD_REQUEST,
-#                     )
-
-#                 try:
-#                     bill = Bill.objects.get(bill_number=txn.bill_no)
-#                     bill_transactions = Transaction.objects.filter(bill_no=bill.id)
-#                     total_amount_paid = sum(
-#                         transaction.amount for transaction in bill_transactions
-#                     )
-#                     if float(total_amount_paid) != float(bill.total_amount):
-#                         bill.bill_status = "Active"
-#                         bill.bill_payment_status = "Unpaid"
-#                         bill.amount_paid += float(amount)
-#                     else:
-#                         bill.amount_paid = total_amount_paid
-#                         # bill.bill_payment_id = txn.id
-#                         bill.payment_confirmed = True
-#                         bill.bill_payment_status = "Paid"
-#                         bill.bill_status = "Closed"
-#                     bill.save()
-#                 except Bill.DoesNotExist:
-#                     return Response(
-#                         {"error": "Bill not found."}, status=status.HTTP_400_BAD_REQUEST
-#                     )
-
-#                 return Response(
-#                     {"message": "Callback received and processed successfully."}
-#                 )
-#             except KeyError:
-#                 return Response(
-#                     {"error": "Invalid callback data format."},
-#                     status=status.HTTP_400_BAD_REQUEST,
-#                 )
-
-#     def get(self, request, format=None):
-#         response_bodies = MpesaResponseBody.objects.all()
-#         serializer = MpesaResponseBodySerializer(response_bodies, many=True)
-#         return Response({"responses": serializer.data})
-
-
 class InvoiceCreateView(generics.CreateAPIView):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
@@ -952,6 +860,168 @@ class InvoiceCreateView(generics.CreateAPIView):
         headers = self.get_success_headers(serializer.data)
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
+@csrf_exempt
+def mpesa_callback(request):
+    try:
+        if request.method == "POST":
+            print("CALLBACK RECIEVED")
+            # Parse the JSON data from the request body
+            stk_callback_response = json.loads(request.body.decode("utf-8"))
+            print(stk_callback_response)
+
+            mpesa_callback = MpesaCallback.objects.create(
+                body=json.dumps(stk_callback_response)
+            )
+
+            if mpesa_callback:
+                print("MpesaCallbacks object created successfully.")
+
+                body = stk_callback_response.get("Body", {})
+                stk_callback = body.get("stkCallback", {})
+                print(body)
+                print("stk callback")
+                print(stk_callback)
+
+                merchant_request_id = stk_callback.get("MerchantRequestID", "")
+                checkout_request_id = stk_callback.get("CheckoutRequestID", "")
+                result_code = stk_callback.get("ResultCode", "")
+                result_desc = stk_callback.get("ResultDesc", "")
+
+                if result_code == 0:
+
+                    try:
+                        callback_metadata = stk_callback.get("CallbackMetadata", {})
+
+                        items = callback_metadata.get("Item", [])
+
+                        amount = next(
+                            (
+                                item["Value"]
+                                for item in items
+                                if item["Name"] == "Amount"
+                            ),
+                            None,
+                        )
+
+                        mpesa_receipt_number = next(
+                            (
+                                item["Value"]
+                                for item in items
+                                if item["Name"] == "MpesaReceiptNumber"
+                            ),
+                            None,
+                        )
+                        transaction_date = next(
+                            (
+                                item["Value"]
+                                for item in items
+                                if item["Name"] == "TransactionDate"
+                            ),
+                            None,
+                        )
+                        phone_number = next(
+                            (
+                                item["Value"]
+                                for item in items
+                                if item["Name"] == "PhoneNumber"
+                            ),
+                            None,
+                        )
+
+                        current_invoice_stkpush_request = get_object_or_404(
+                            MpesaStkPushRequestResponse,
+                            checkout_request_id=checkout_request_id,
+                            merchant_request_id=merchant_request_id,
+                        )
+                        print("CURRENT OBJ")
+                        print(current_invoice_stkpush_request)
+                        print(
+                            current_invoice_stkpush_request.invoice_number,
+                            current_invoice_stkpush_request.fcm_token,
+                        )
+
+                        current_invoice = get_object_or_404(
+                            Invoice,
+                            invoice_number=current_invoice_stkpush_request.invoice_number,
+                        )
+                        tickets = current_invoice.data
+                        current_invoice.is_paid = True
+                        current_invoice.paid_at = timezone.now()
+                        current_invoice.mpesa_receipt = mpesa_receipt_number
+                        current_invoice.save()
+
+                        print("TICKETS JSON")
+                        print(tickets)
+                        email_to = current_invoice.data["payment"]["email_to"]
+                        print(email_to)
+                        try:
+                            serializer = BulkTicketCreateSerializer(
+                                data=tickets,
+                                context={
+                                    "email_to": email_to,
+                                    "invoice_number": get_object_or_404(
+                                        Invoice,
+                                        invoice_number=current_invoice.invoice_number,
+                                    ),
+                                    "mpesa_receipt": mpesa_receipt_number,
+                                },
+                            )
+                            if serializer.is_valid():
+                                try:
+                                    serializer.save()
+                                    print(serializer.data)
+                                except Exception as e:
+                                    print("TICKET CREATION FAILED")
+                                    print(e)
+
+                                # "send push notification"
+                                # try:
+
+                                #     tkn="cC4X15yUcilSnIJFwSvYAe:APA91bEe1IMpSs8noBuL5gGi74Y38GJ9XKc8gtoRSetiQN0E27tuSPQ0Ij8zl0u_vFBnHEHY5Vsu42rvTwqzpTo6yt6RklShSYW-8LwTaFZ0Y_h1uGa67nIQecr5HzDiI5YyNOqFAhSE"
+                                #     device, created = FCMDevice.objects.get_or_create(registration_id=tkn)
+                                #     device = FCMDevice.objects.filter(registration_id=tkn)
+                                #     device.send_message(Message(
+                                #     notification=Notification(title="Payment COnfimed", body=f"SOme", image="url"),
+                                #     data={
+                                #         "is_paid" : True,
+                                #         },
+
+                                #     ) )
+
+                                # except Exception as e:
+                                #     print(e)
+
+                                # send emails to customer
+
+                            else:
+                                print("Failed Serializer")
+                                print(serializer)
+                        except Exception as e:
+                            print("BUlk Serializer Exception")
+                            print(e)
+
+                        mpesa_payment = MpesaPayment.objects.create(
+                            merchant_request_id=merchant_request_id,
+                            checkout_request_id=checkout_request_id,
+                            result_code=result_code,
+                            result_desc=result_desc,
+                            amount=amount,
+                            mpesa_receipt_number=mpesa_receipt_number,
+                            transaction_date=transaction_date,
+                            phone_number=phone_number,
+                            invoice_number=get_object_or_404(
+                                Invoice, invoice_number=current_invoice.invoice_number
+                            ),
+                        )
+                    except Exception as e:
+                        print(e)
+                        print(" ERROR SAVING MPESA PAYMENTS")
+
+        return HttpResponse("success", status=200)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
 
 class InitiatePayment(APIView):
 
@@ -1301,69 +1371,6 @@ class InvoiceDetailView(generics.RetrieveAPIView):
     def get_object(self):
         invoice_id = self.kwargs.get('pk')
         return Invoice.objects.get(id=invoice_id)
-
-
-@csrf_exempt
-def query_transaction(request):
-    print("------------------/")
-    try:
-        if request.method == "POST":
-            print("QUERY CALLBACK RECIEVED")
-            # Parse the JSON data from the request body
-            callback_response = json.loads(request.body.decode("utf-8"))
-            print(callback_response)
-
-            mpesa_callback = TransactionStatus.objects.create(
-                body=json.dumps(callback_response)
-            )
-
-            # Define your access credentials and endpoints
-        
-        api_url = "https://sandbox.safaricom.co.ke/mpesa/transactionstatus/v1/query"
-
-        # Step 1: Obtain the OAuth Token
-        # oauth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
-        # response = requests.get(oauth_url, auth=(consumer_key, consumer_secret))
-        oauth_token = MpesaAccessToken.validated_mpesa_access_token
-        print("**************")
-        print(oauth_token)
-        print("**************")
-
-        # Step 2: Prepare the request payload
-        payload = {
-            "Initiator": "testapiuser",
-            "SecurityCredential": "0350e85bcb0368d621c1882961cbd93a3eaaa0d82851ff97393ea14a7cf3f1a5",
-            "Command ID": "TransactionStatusQuery",
-            "Transaction ID": "SFT32XH6YL",
-            "OriginatorConversationID": "AG_20190826_0000777ab7d848b9e721",
-            "PartyA": "4137255",
-            "IdentifierType": "4",
-            "ResultURL": "https://tickoh.stackthon.com/api/query-status",
-            "QueueTimeOutURL": "http://myservice:8080/timeout",
-            "Remarks": "OK",
-            "Occasion": "OK",
-        }
-
-        headers = {
-            "Authorization": f"Bearer {oauth_token}",
-            "Content-Type": "application/json",
-        }
-
-        # Step 3: Send the request to the Transaction Status API
-        response = requests.post(api_url, headers=headers, json=payload)
-        response_data = response.json()
-        print("*******--*******")
-        print(response_data)
-        print("**************")
-
-        # Step 4: Save the response data to the database
-        transaction_status = TransactionStatus(result=json.dumps(response_data))
-        transaction_status.save()
-
-        return transaction_status
-
-    except Exception as e:
-        print(e)
 
 
 class TicketCountView(APIView):

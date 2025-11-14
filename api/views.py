@@ -23,6 +23,7 @@ from django.contrib.auth.decorators import login_required
 from .serializers import *
 from .authentication import *
 import time
+from mailjet_rest import Client
 from rest_framework import generics, status, viewsets
 from django.core.paginator import Paginator
 from django.core.mail import send_mail
@@ -54,8 +55,10 @@ from rest_framework.decorators import throttle_classes
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from .mpesa import Mpesa
 import re
+from django.conf import settings
 from django.db.models import Count, Sum, F, Q
 logger = logging.getLogger(__name__)
+
 
 # Create your views here.
 class RegisterApiView(APIView):
@@ -293,23 +296,64 @@ class LogoutApiView(APIView):
 class ForgotPasswordApiView(APIView):
     @throttle_classes([UserRateThrottle, AnonRateThrottle])
     def post(self, request):
-        email = request.data["email"]
-        token = "".join(
-            random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
-        )
-        Reset.objects.create(email=request.data["email"], token=token)
-        url = "http://localhost:8000/reset/" + token
-        try:
-            send_mail(
-                subject="Reset Your Password",
-                message='Click <a href="%s">here<a/> to reset your password' % url,
-                from_email="tickets@tamashalink.com",
-                recipient_list=[email],
-            )
-        except Exception as e:
-            print(e)
-        return Response({"message": "success"})
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
 
+        # Generate reset token
+        token = "".join(
+            random.choice(string.ascii_lowercase + string.digits)
+            for _ in range(10)
+        )
+
+        Reset.objects.create(email=email, token=token)
+
+        # Reset URL
+        reset_url = f"{request.scheme}://{request.get_host()}/reset/{token}"
+
+        # Mailjet Client
+        mailjet = Client(
+            auth=(settings.MAIL_JET_API_KEY, settings.MAIL_JET_API_SECRET),
+            version="v3.1"
+        )
+
+        # Email payload
+        data = {
+            'Messages': [
+                {
+                    "From": {
+                        "Email": "shuletrack@gmail.com",
+                        "Name": "Tamasha Link"
+                    },
+                    "To": [
+                        {
+                            "Email": email,
+                            "Name": email
+                        }
+                    ],
+                    "Subject": "Reset Your Password",
+                    "HTMLPart": f"""
+                        <p>Hello,</p>
+                        <p>You requested to reset your password.</p>
+                        <p>Click the link below to reset it:</p>
+                        <p><a href="{reset_url}">Reset Password</a></p>
+                        <br>
+                        <p>If you didn't request this, please ignore this email.</p>
+                    """,
+                    "TextPart": f"Reset your password here: {reset_url}",
+                }
+            ]
+        }
+
+        # Send email
+        try:
+            result = mailjet.send.create(data=data)
+            print(result.json())
+        except Exception as e:
+            print("Mailjet Error:", e)
+            return Response({"message": "Failed to send email"}, status=500)
+
+        return Response({"message": "success"})
 
 class ResetPasswordApiView(APIView):
 
@@ -700,7 +744,7 @@ class TicketTypeDeleteAPIView(generics.DestroyAPIView):
 
 
 class TicketListView(generics.ListCreateAPIView):
-    # authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     queryset = Ticket.objects.all()
     serializer_class = BulkTicketCreateSerializer
 
@@ -853,17 +897,22 @@ class InvoiceCreateView(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # Create invoice
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
 
-        # Include total amount in the response
+        # 🔥 Save invoice with computed values
+        invoice = serializer.save(
+            invoice_amount=total_amount,
+            ticket_quantity=len(attendee_info)
+        )
+        print(f"Invoice created: {invoice}")
+
         response_data = serializer.data
         response_data["total_amount"] = total_amount
 
-        headers = self.get_success_headers(serializer.data)
+        headers = self.get_success_headers(response_data)
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
 
 @csrf_exempt
 def mpesa_callback(request):
@@ -1594,12 +1643,12 @@ class ContactAPIView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 # Admin API Views (Staff-only)
-class TicketListAPIView(ListAPIView):
+class SupportTicketListAPIView(ListAPIView):
     authentication_classes = [JWTAuthentication]
     queryset = SupportTicket.objects.all()
     serializer_class = SupportTicketSerializer
 
-class TicketDetailAPIView(RetrieveUpdateAPIView):
+class SupportTicketDetailAPIView(RetrieveUpdateAPIView):
     authentication_classes = [JWTAuthentication]
     queryset = SupportTicket.objects.all()
     serializer_class = SupportTicketSerializer

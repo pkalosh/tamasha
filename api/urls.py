@@ -88,8 +88,8 @@ urlpatterns = [
     path('contact', views.ContactAPIView.as_view(), name='contact_api'),
     
     # Admin API views
-    path('admin/tickets', views.TicketListAPIView.as_view(), name='ticket_list_api'),
-    path('admin/tickets/<int:pk>', views.TicketDetailAPIView.as_view(), name='ticket_detail_api'),
-    path('admin/tickets/<int:pk>/close', views.mark_ticket_closed, name='mark_ticket_closed_api'),
+    path('admin/support', views.SupportTicketListAPIView.as_view(), name='support_ticket_list_api'),
+    path('admin/support/<int:pk>', views.SupportTicketDetailAPIView.as_view(), name='support_ticket_detail_api'),
+    path('admin/support/<int:pk>/close', views.mark_ticket_closed, name='mark_ticket_closed_api'),
     path('verify-ticket', views.VerifyTicketAPIView.as_view(), name='verify_ticket_api'),
 ]

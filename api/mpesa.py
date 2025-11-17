@@ -52,7 +52,7 @@ class Mpesa:
         auth_bytes = auth_string.encode('ascii')
         auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
         headers = {"Authorization": f"Basic {auth_b64}"}
-        token_url = f"{self.api_url}/oauth/v1/generate?grant_type=client_credentials"
+        token_url = f"{self.api_url}/oauth/v2/generate?grant_type=client_credentials"
         
         # Debug logs (remove or use proper logger in production)
         print(f"Debug - API Base: {self.api_url}")
